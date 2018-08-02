@@ -1,0 +1,36 @@
+function create_build_sbt_file {
+        BUILD_SBT_FILE=${GEN_APPSDIR}/flink/${APPLICATION}/build.sbt
+        [ -f ${BUILD_SBT_FILE} ] && rm -f ${BUILD_SBT_FILE}
+        cat >> $BUILD_SBT_FILE << !
+lazy val root = (project in file(".")).
+  settings(
+    name := "${APPLICATION}",
+    version := "1.0",
+    scalaVersion := "2.11.8",
+    mainClass in Compile := Some("myPackage.${APPLICATION}")
+  )
+
+libraryDependencies += "org.apache.hadoop" % "hadoop-core" % "1.2.1"
+libraryDependencies += "org.apache.hbase" % "hbase" % "1.2.6"
+libraryDependencies += "org.apache.hbase" % "hbase-client" % "1.2.6"
+libraryDependencies += "org.apache.hbase" % "hbase-common" % "1.2.6"
+libraryDependencies += "org.apache.hbase" % "hbase-server" % "1.2.6"
+
+libraryDependencies += "org.apache.flink" %% "flink-connector-kafka-0.11" % "1.5.0"
+libraryDependencies += "org.apache.flink" %% "flink-connector-kafka-base" % "1.5.0"
+libraryDependencies += "org.apache.flink" %% "flink-scala" % "1.5.0"
+libraryDependencies += "org.apache.kafka" % "kafka-clients" % "0.11.0.0"
+libraryDependencies += "org.apache.flink" %% "flink-streaming-scala" % "1.5.0"
+//libraryDependencies += "org.apache.flink" %% "flink-streaming-java" % "1.5.0" % "provided"
+libraryDependencies += "org.apache.flink" %% "flink-table" % "1.5.0" % "provided"
+libraryDependencies += "org.apache.kafka" %% "kafka" % "0.11.0.0"
+
+// META-INF discarding
+mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
+   {
+    case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+    case x => MergeStrategy.first
+   }
+}
+!
+}
