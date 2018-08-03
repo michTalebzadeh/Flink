@@ -146,8 +146,8 @@ object md_streaming
  //
  //
     val newDateStream = dataStream.map(new MapFunction[String, Tuple4[String, String, String, String]] {
-      Override def map(value: String): Tuple4[String, String, String, String] = {
-        Return null
+      override def map(value: String): Tuple4[String, String, String, String] = {
+        return null
       }
     })
 
