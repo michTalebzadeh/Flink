@@ -1,7 +1,6 @@
 import java.util.Properties
 import java.util.Arrays
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala
 
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
@@ -9,7 +8,8 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._ 
 
-
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -39,6 +39,15 @@ import org.apache.log4j.Level
 import sys.process.stringSeqToProcess
 //import scala.collection.mutable.HashMap
 import java.io.File
+
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.java.StreamTableEnvironment
+
+
+import org.apache.flink.types.Row
 
 object md_streaming
 {
@@ -136,10 +145,16 @@ object md_streaming
        .addSource(new FlinkKafkaConsumer011[String](topicsValue, new SimpleStringSchema(), properties))
  //
  //
+    val newDateStream = dataStream.map(new MapFunction[String, Tuple4[String, String, String, String]] {
+      Override def map(value: String): Tuple4[String, String, String, String] = {
+        Return null
+      }
+    })
 
   val tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv)
-  //tableEnv.registerDataStream("table1", streamExecEnv, 'key, 'ticker, 'timeissued, 'price)
-  tableEnv.registerDataStream("priceTable", dataStream, "key, ticker, timeissued, price")
+    tableEnv.registerDataStream("priceTable", newDateStream, 'key, 'ticker, 'timeissued, 'price)
+
+
   sqltext  = "SELECT key from priceTable";
   val result = tableEnv.sql(sqltext);
 
