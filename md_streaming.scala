@@ -6,14 +6,14 @@ import org.apache.flink.streaming.api.scala
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala._ 
+//import org.apache.flink.api.scala._ 
 
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.consumer.KafkaConsumer
+//import org.apache.kafka.clients.consumer.ConsumerConfig
+//import org.apache.kafka.clients.consumer.ConsumerRecord
+//import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.streaming.api.TimeCharacteristic
 
@@ -41,8 +41,6 @@ import sys.process.stringSeqToProcess
 import java.io.File
 
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.api.java.StreamTableEnvironment
 
