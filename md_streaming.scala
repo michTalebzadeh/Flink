@@ -19,7 +19,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 
 import org.slf4j.LoggerFactory
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer011, FlinkKafkaProducer011}
-/*
 import org.apache.hadoop.hbase.{HBaseConfiguration, HTableDescriptor}
 import org.apache.hadoop.hbase.client.HBaseAdmin
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
@@ -28,7 +27,6 @@ import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.client.HTable
-*/
 import java.util.Calendar
 //import scala.math._
 import java.util.Date
@@ -91,12 +89,12 @@ object md_streaming
   private val elasticsearchHost = "" // look-up hostname in Elasticsearch log output
   private val elasticsearchPort = 9300
   private val logger = LoggerFactory.getLogger(getClass)
+  private val parallelism = 1 
 
 
   def main(args: Array[String])
   {
    var startTimeQuery = System.currentTimeMillis
-/*
     // Start Hbase table stuff
     val tableName = "MARKETDATAHBASESPEEDFLINK"
     val hbaseConf = HBaseConfiguration.create()
@@ -119,45 +117,39 @@ object md_streaming
     }
     val HbaseTable = new HTable(hbaseConf, tableName)
     // End Hbase table stuff
-*/
     var sqltext = ""
     var totalPrices: Long = 0
     val runTime = 240
 
-    val getCheckpointDirectory = new getCheckpointDirectory
-    println("Hdfs directory is " + getCheckpointDirectory.checkpointDirectory(flinkAppName))
+    //val getCheckpointDirectory = new getCheckpointDirectory
+    //println("Hdfs directory is " + getCheckpointDirectory.checkpointDirectory(flinkAppName))
 
     val properties = new Properties()
     properties.setProperty("bootstrap.servers", bootstrapServers)
     properties.setProperty("zookeeper.connect", zookeeperConnect)
     properties.setProperty("group.id", flinkAppName)
     properties.setProperty("auto.offset.reset", "latest")
-    val  streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment
-     //////streamExecEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    // generate a Watermark every two seconds
-     ////////streamExecEnv.getConfig().setAutoWatermarkInterval(2000)
+    val streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    streamExecEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    streamExecEnv.setParallelism(parallelism)
     //    
-    //Create a Kafka consumer
-    //
-    val dataStream =  streamExecEnv
+    val ds =  streamExecEnv
        .addSource(new FlinkKafkaConsumer011[String](topicsValue, new SimpleStringSchema(), properties))
- //
- //
-    val newDateStream = dataStream.map(new MapFunction[String, Tuple4[String, String, String, String]] {
-      override def map(value: String): Tuple4[String, String, String, String] = {
-        return null
+    val splitStream = ds.map(new MapFunction[String, Tuple4[String, String, String, Float]] {
+      override def map(value: String): Tuple4[String, String, String, Float] = {
+        var cols = value.split(',')
+        return (cols(0).toString, cols(1).toString, cols(2).toString, cols(3).toFloat)
       }
     })
 
-  val tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv)
-    tableEnv.registerDataStream("priceTable", newDateStream, 'key, 'ticker, 'timeissued, 'price)
+    val tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv)
 
-
-  sqltext  = "SELECT key from priceTable";
-  val result = tableEnv.sql(sqltext);
-
-
-    val topics = Set(topicsValue)
+    tableEnv.registerDataStream("priceTable", splitStream, 'key, 'ticker, 'timeissued, 'price)
+/*
+    val result = tableEnv.scan("priceTable").filter('ticker === "VOD" && 'price > 99.0).select('key, 'ticker, 'timeissued, 'price)
+    val r = result.toDataStream[Row]
+    r.print()
+*/
     val comma = ","
     val q = """""""
     var current_timestamp = "current_timestamp"
@@ -172,44 +164,40 @@ object md_streaming
            println("\nDuration exceeded " + runTime + " minutes exiting")
            System.exit(0)
          }
-/*
-           var key =  dataStream.split(',').view(0).toString
-           var ticker =   dataStream.split(',').view(1).toString
-           var timeissued =  dataStream.split(',').view(2).toString
-           var price =  dataStream.split(',').view(3).toFloat
-           val priceToString =  dataStream.split(',').view(3)
+
+           val key = tableEnv.scan("priceTable").select('key).toDataStream[Row]
+           val ticker = tableEnv.scan("priceTable").select('ticker).toDataStream[Row]
+           val timeissued = tableEnv.scan("priceTable").select('timeissued).toDataStream[Row]
+           val price = tableEnv.scan("priceTable").select('price).toDataStream[Row]
+
            val CURRENCY = "GBP"
            val op_type = "1"
            val op_time = System.currentTimeMillis.toString
-           println("\nkey is " + key)
-*/
 /*
-           if (price > 90.0)
+           if (price > 99.0)
            {
              println ("price > 90.0, saving to Hbase table!")
 
             // Save prices to Hbase table
              var p = new Put(new String(key).getBytes())
-             //p.add("PRICE_INFO".getBytes(), "key".getBytes(),          new String(ticker).getBytes())
+            //p.add("PRICE_INFO".getBytes(), "key".getBytes(),          new String(ticker).getBytes())
              p.add("PRICE_INFO".getBytes(), "TICKER".getBytes(),          new String(ticker).getBytes())
-             p.add("PRICE_INFO".getBytes(), "SSUED".getBytes(),     new String(timeissued).getBytes())
+             p.add("PRICE_INFO".getBytes(), "ISSUED".getBytes(),     new String(timeissued).getBytes())
              p.add("PRICE_INFO".getBytes(), "PRICE".getBytes(),           new String(priceToString).getBytes())
              p.add("PRICE_INFO".getBytes(), "CURRENCY".getBytes(),         new String(CURRENCY).getBytes())
              p.add("OPERATION".getBytes(), "OP_TYPE".getBytes(),         new String(1.toString).getBytes())
              p.add("OPERATION".getBytes(), "OP_TIME".getBytes(),         new String(System.currentTimeMillis.toString).getBytes())
              HbaseTable.put(p)
              HbaseTable.flushCommits()
-             if(ticker == "VOD" && price > 99.0)
+             if(tableEnv.scan("priceTable").filter('ticker == "VOD" && 'price > 99.0))
              {
                sqltext = Calendar.getInstance.getTime.toString + ", Price on "+ticker+" hit " +price.toString
                //java.awt.Toolkit.getDefaultToolkit().beep()
                println(sqltext)
              }
            }
-         }
-*/
-
-    val sink =  dataStream.writeAsText(writeDirectory+fileName+Calendar.getInstance.getTime.toString, FileSystem.WriteMode.OVERWRITE)
+*/  
+  //val sink =  ds.writeAsText(writeDirectory+fileName+Calendar.getInstance.getTime.toString, FileSystem.WriteMode.OVERWRITE)
     //env.execute("Flink Kafka Example writing to "+writeDirectory+fileName)
      streamExecEnv.execute("Flink simple output")
   }
